@@ -190,24 +190,35 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     Log.d(logTag, "onDiscovery type: $printType")
     when (printType) {
       "TCP" -> {
-        onDiscoveryTCP(call, result)
+        onDiscoveryPrinter(call, Discovery.PORTTYPE_TCP, result)
       }
-
       "USB" -> {
-        onDiscoveryUSB(call, result)
+        onDiscoveryPrinter(call, Discovery.PORTTYPE_USB, result)
+      }
+      "BT" -> {
+        onDiscoveryPrinter(call, Discovery.PORTTYPE_BLUETOOTH, result)
+      }
+      "ALL" -> {
+        onDiscoveryPrinter(call, Discovery.TYPE_PRINTER, result)
       }
       else -> result.notImplemented()
     }
   }
 
   /**
-   * Discovery Printers via TCP/IP
+   * Discovery Printers GENERIC
    */
-  private fun onDiscoveryTCP(@NonNull call: MethodCall, @NonNull result: Result) {
+  private fun onDiscoveryPrinter(@NonNull call: MethodCall, portType: Int, @NonNull result: Result) {
+    var delay:Long = 7000;
+    if(portType == Discovery.PORTTYPE_USB){
+      delay = 1000;
+    }
     printers.clear()
     var filter = FilterOption()
-    filter.portType = Discovery.PORTTYPE_TCP
-    var resp = EpsonEposPrinterResult("onDiscoveryTCP", false)
+    filter.portType = portType;
+    Log.e("onDiscoveryPrinter", "Filter = $portType");
+
+    var resp = EpsonEposPrinterResult("onDiscoveryPrinter", false)
     try {
       Discovery.start(context, filter, mDiscoveryListener)
       Handler(Looper.getMainLooper()).postDelayed({
@@ -216,42 +227,18 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         resp.content = printers
         result.success(resp.toJSON())
         stopDiscovery()
-      }, 7000)
+      }, delay)
     } catch (e: Exception) {
-      Log.e("OnDiscoveryTCP", "Start not working ${call.method}");
-      e.printStackTrace()
+      Log.e("onDiscoveryPrinter", "Start not working ${call.method}");
       resp.success = false
       resp.message = "Error while search printer"
+      e.printStackTrace()
       result.success(resp.toJSON())
     }
   }
 
 
-  /**
-   * Discovery Printers via TCP/IP
-   */
-  private fun onDiscoveryUSB(@NonNull call: MethodCall, @NonNull result: Result) {
-    printers.clear()
-    var filter = FilterOption()
-    filter.portType = Discovery.PORTTYPE_USB
-    var resp = EpsonEposPrinterResult("onDiscoveryUSB", false)
-    try {
-      Discovery.start(context, filter, mDiscoveryListener)
-      Handler(Looper.getMainLooper()).postDelayed({
-        resp.success = true
-        resp.message = "Successfully!"
-        resp.content = printers
-        result.success(resp.toJSON())
-        stopDiscovery()
-      }, 1000)
-    } catch (e: Exception) {
-      Log.e("OnDiscoveryTCP", "Start not working ${call.method}");
-      e.printStackTrace()
-      resp.success = false
-      resp.message = "Error while search printer"
-      result.success(resp.toJSON())
-    }
-  }
+
 
   private fun onGetPrinterInfo(@NonNull call: MethodCall, @NonNull result: Result) {
     Log.d(logTag, "onGetPrinterInfo $call $result")
@@ -547,82 +534,6 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
               mPrinter!!.addTextAlign(Printer.PARAM_DEFAULT)
             }
           }
-        }
-        "addTextFont" -> {
-          when (commandValue.toString()) {
-            "FONT_A" -> {
-              mPrinter!!.addTextFont(Printer.FONT_A)
-            }
-            "FONT_B" -> {
-              mPrinter!!.addTextFont(Printer.FONT_B)
-            }
-            "FONT_C" -> {
-              mPrinter!!.addTextFont(Printer.FONT_C)
-            }
-            "FONT_D" -> {
-              mPrinter!!.addTextFont(Printer.FONT_D)
-            }
-            "FONT_E" -> {
-              mPrinter!!.addTextFont(Printer.FONT_E)
-            }
-          }
-        }
-        "addTextSmooth" -> {
-          if (commandValue as Boolean) {
-            mPrinter!!.addTextSmooth(Printer.TRUE)
-          } else {
-            mPrinter!!.addTextSmooth(Printer.FALSE)
-          }
-        }
-        "addTextSize" -> {
-          val width = command["width"] as Int
-          val height = command["height"] as Int
-          Log.d(logTag, "setTextSize: width: $width, height: $height")
-          mPrinter!!.addTextSize(width, height)
-        }
-        "addTextStyle" -> {
-          val reverse = command["reverse"] as Boolean?
-          val ul = command["ul"] as Boolean?
-          val em = command["em"] as Boolean?
-          val color = command["color"] as String?
-
-          val reverseValue = if (reverse != null) {
-            if (reverse) {
-              Printer.TRUE
-            } else
-              Printer.FALSE
-          } else {
-            Printer.PARAM_DEFAULT
-          }
-
-          val ulValue = if (ul != null) {
-            if (ul) {
-              Printer.TRUE
-            } else
-              Printer.FALSE
-          } else {
-            Printer.PARAM_DEFAULT
-          }
-
-          val emValue = if (em != null) {
-            if (em) {
-              Printer.TRUE
-            } else
-              Printer.FALSE
-          } else {
-            Printer.PARAM_DEFAULT
-          }
-
-          val colorValue = when(color) {
-            "COLOR_NONE" -> Printer.COLOR_NONE
-            "COLOR_1" -> Printer.COLOR_1
-            "COLOR_2" -> Printer.COLOR_2
-            "COLOR_3" -> Printer.COLOR_3
-            "COLOR_4" -> Printer.COLOR_4
-            else -> Printer.PARAM_DEFAULT
-          }
-
-          mPrinter!!.addTextStyle(reverseValue, ulValue, emValue, colorValue)
         }
       }
     }

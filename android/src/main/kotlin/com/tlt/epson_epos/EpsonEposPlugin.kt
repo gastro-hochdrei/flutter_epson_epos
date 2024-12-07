@@ -198,21 +198,31 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     var printers = mutableListOf<EpsonEposPrinterInfo>()
     val filter = FilterOption()
     filter.portType = portType
+    Log.e("onDiscoveryPrinter", "Filter = $portType")
 
     try {
-      Discovery.start(context, filter) { deviceInfo ->
-        // Convert DeviceInfo to EpsonEposPrinterInfo
-        val printerInfo =
-                EpsonEposPrinterInfo(
-                        deviceInfo.target,
-                        deviceInfo.macAddress,
-                        deviceInfo.model,
-                        deviceInfo.type
-                )
-        printers.add(printerInfo)
-      }
+      Discovery.start(
+              context,
+              filter,
+              object : DiscoveryListener {
+                override fun onDiscovery(deviceInfo: DeviceInfo?) {
+                  if (deviceInfo != null) {
+                    val printerInfo =
+                            EpsonEposPrinterInfo(
+                                    ipAddress = deviceInfo.ipAddress,
+                                    bdAddress = deviceInfo.bdAddress,
+                                    macAddress = deviceInfo.macAddress,
+                                    model = deviceInfo.deviceName,
+                                    type = deviceInfo.deviceType.toString(),
+                                    printType = deviceInfo.deviceType.toString(),
+                                    target = deviceInfo.target
+                            )
+                    printers.add(printerInfo)
+                  }
+                }
+              }
+      )
 
-      // Handle completion
       Handler(Looper.getMainLooper())
               .postDelayed(
                       {
@@ -229,6 +239,7 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                       7000
               )
     } catch (e: Exception) {
+      Log.e("onDiscoveryPrinter", "Start not working onDiscovery")
       val resp = EpsonEposPrinterResult("onDiscoveryPrinter", false, "Error while search printer")
       result.success(resp.toJSON())
     }

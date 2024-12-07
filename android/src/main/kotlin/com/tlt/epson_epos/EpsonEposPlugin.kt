@@ -209,33 +209,38 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
    * Discovery Printers GENERIC
    */
   private fun onDiscoveryPrinter(@NonNull call: MethodCall, portType: Int, @NonNull result: Result) {
-    var delay:Long = 7000;
-    if(portType == Discovery.PORTTYPE_USB){
-      delay = 1000;
-    }
     printers.clear()
-    var filter = FilterOption()
-    filter.portType = portType;
-    Log.e("onDiscoveryPrinter", "Filter = $portType");
-
-    var resp = EpsonEposPrinterResult("onDiscoveryPrinter", false)
+    val filter = FilterOption()
+    filter.portType = portType
+    
     try {
-      Discovery.start(context, filter, mDiscoveryListener)
-      Handler(Looper.getMainLooper()).postDelayed({
-        resp.success = true
-        resp.message = "Successfully!"
-        resp.content = printers
-        result.success(resp.toJSON())
-        stopDiscovery()
-      }, delay)
+        mDiscoveryListener = DiscoveryListener { device ->
+            printers.add(device)
+            // Optionally notify progress
+        }
+        
+        Discovery.start(context, filter, mDiscoveryListener)
+        
+        // Return results when discovery completes
+        mDiscoveryListener.onDiscoveryComplete = {
+            val resp = EpsonEposPrinterResult(
+                "onDiscoveryPrinter",
+                true,
+                "Successfully!",
+                printers
+            )
+            result.success(resp.toJSON())
+            stopDiscovery()
+        }
     } catch (e: Exception) {
-      Log.e("onDiscoveryPrinter", "Start not working ${call.method}");
-      resp.success = false
-      resp.message = "Error while search printer"
-      e.printStackTrace()
-      result.success(resp.toJSON())
+        val resp = EpsonEposPrinterResult(
+            "onDiscoveryPrinter",
+            false,
+            "Error while search printer"
+        )
+        result.success(resp.toJSON())
     }
-  }
+}
 
 
 

@@ -11,6 +11,7 @@ import android.util.Log
 import androidx.annotation.NonNull
 import com.epson.epos2.Epos2Exception
 import com.epson.epos2.Log as PrintLog
+import com.epson.epos2.discovery.DeviceInfo
 import com.epson.epos2.discovery.Discovery
 import com.epson.epos2.discovery.DiscoveryListener
 import com.epson.epos2.discovery.FilterOption
@@ -189,7 +190,6 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     }
   }
 
-  /** Discovery Printers GENERIC */
   private fun onDiscoveryPrinter(
           @NonNull call: MethodCall,
           portType: Int,
@@ -206,16 +206,16 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
               filter,
               object : DiscoveryListener {
                 override fun onDiscovery(deviceInfo: DeviceInfo?) {
-                  if (deviceInfo != null) {
+                  deviceInfo?.let {
                     val printerInfo =
                             EpsonEposPrinterInfo(
-                                    ipAddress = deviceInfo.ipAddress,
-                                    bdAddress = deviceInfo.bdAddress,
-                                    macAddress = deviceInfo.macAddress,
-                                    model = deviceInfo.deviceName,
-                                    type = deviceInfo.deviceType.toString(),
-                                    printType = deviceInfo.deviceType.toString(),
-                                    target = deviceInfo.target
+                                    ipAddress = it.ipAddress,
+                                    bdAddress = it.bdAddress,
+                                    macAddress = it.macAddress,
+                                    model = it.deviceName,
+                                    type = it.deviceType.toString(),
+                                    printType = it.deviceType.toString(),
+                                    target = it.target
                             )
                     printers.add(printerInfo)
                   }

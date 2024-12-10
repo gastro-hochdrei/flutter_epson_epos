@@ -11,7 +11,6 @@ import android.util.Log
 import androidx.annotation.NonNull
 import com.epson.epos2.Epos2Exception
 import com.epson.epos2.Log as PrintLog
-import com.epson.epos2.discovery.DeviceInfo
 import com.epson.epos2.discovery.Discovery
 import com.epson.epos2.discovery.DiscoveryListener
 import com.epson.epos2.discovery.FilterOption
@@ -190,57 +189,40 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     }
   }
 
+  /** Discovery Printers GENERIC */
   private fun onDiscoveryPrinter(
           @NonNull call: MethodCall,
           portType: Int,
           @NonNull result: Result
   ) {
-    var printers = mutableListOf<EpsonEposPrinterInfo>()
-    val filter = FilterOption()
+    var delay: Long = 7000
+    if (portType == Discovery.PORTTYPE_USB) {
+      delay = 1000
+    }
+    printers.clear()
+    var filter = FilterOption()
     filter.portType = portType
     Log.e("onDiscoveryPrinter", "Filter = $portType")
 
+    var resp = EpsonEposPrinterResult("onDiscoveryPrinter", false)
     try {
-      Discovery.start(
-              context,
-              filter,
-              object : DiscoveryListener {
-                override fun onDiscovery(deviceInfo: DeviceInfo?) {
-                  deviceInfo?.let {
-                    val printerInfo =
-                            EpsonEposPrinterInfo(
-                                    ipAddress = it.ipAddress,
-                                    bdAddress = it.bdAddress,
-                                    macAddress = it.macAddress,
-                                    model = it.deviceName,
-                                    type = it.deviceType.toString(),
-                                    printType = it.deviceType.toString(),
-                                    target = it.target
-                            )
-                    printers.add(printerInfo)
-                  }
-                }
-              }
-      )
-
+      Discovery.start(context, filter, mDiscoveryListener)
       Handler(Looper.getMainLooper())
               .postDelayed(
                       {
-                        val resp =
-                                EpsonEposPrinterResult(
-                                        "onDiscoveryPrinter",
-                                        true,
-                                        "Successfully!",
-                                        printers
-                                )
+                        resp.success = true
+                        resp.message = "Successfully!"
+                        resp.content = printers
                         result.success(resp.toJSON())
                         stopDiscovery()
                       },
-                      7000
+                      delay
               )
     } catch (e: Exception) {
-      Log.e("onDiscoveryPrinter", "Start not working onDiscovery")
-      val resp = EpsonEposPrinterResult("onDiscoveryPrinter", false, "Error while search printer")
+      Log.e("onDiscoveryPrinter", "Start not working ${call.method}")
+      resp.success = false
+      resp.message = "Error while search printer"
+      e.printStackTrace()
       result.success(resp.toJSON())
     }
   }

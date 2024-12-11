@@ -171,7 +171,7 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
   private fun onDiscovery(@NonNull call: MethodCall, @NonNull result: Result) {
     val printType: String = call.argument<String>("type") as String
-    var delay: Long = 7000 // Default delay for TCP/BT
+    var delay: Long = 20000 // Default delay for TCP/BT
 
     when (printType) {
       "TCP" -> {
@@ -197,7 +197,7 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
           @NonNull result: Result
   ) {
     // Declare delay variable at the beginning of the function
-    val delay: Long = if (portType == Discovery.PORTTYPE_USB) 1000 else 7000
+    val delay: Long = if (portType == Discovery.PORTTYPE_USB) 1000 else 20000
 
     printers.clear()
     val filter = FilterOption()

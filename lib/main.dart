@@ -23,7 +23,7 @@ class EpsonEPOS {
 
   static Future<List<EpsonPrinterModel>?> onDiscovery({
     EpsonEPOSPortType type = EpsonEPOSPortType.ALL,
-    Duration timeout = const Duration(seconds: 10),
+    Duration timeout = const Duration(seconds: 20),
   }) async {
     if (!_isPrinterPlatformSupport(throwError: true)) return null;
 

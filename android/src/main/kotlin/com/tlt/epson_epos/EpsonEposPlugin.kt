@@ -171,14 +171,13 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
   private fun onDiscovery(@NonNull call: MethodCall, @NonNull result: Result) {
     val printType: String = call.argument<String>("type") as String
-    var delay: Long = 20000 // Default delay for TCP/BT
+    Log.d(logTag, "onDiscovery type: $printType")
 
     when (printType) {
       "TCP" -> {
         onDiscoveryPrinter(call, Discovery.PORTTYPE_TCP, result)
       }
       "USB" -> {
-        delay = 1000 // Shorter delay for USB
         onDiscoveryPrinter(call, Discovery.PORTTYPE_USB, result)
       }
       "BT" -> {
@@ -191,17 +190,21 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     }
   }
 
-  private fun onDiscoveryPrinter(@NonNull call: MethodCall, @NonNull result: Result) {
+  private fun onDiscoveryPrinter(
+          @NonNull call: MethodCall,
+          portType: Int,
+          @NonNull result: Result
+  ) {
     val delay: Long = if (portType == Discovery.PORTTYPE_USB) 1000 else 7000
     printers.clear()
 
     val filter = FilterOption()
     filter.portType = portType
 
+    Log.e("onDiscoveryPrinter", "Filter = $portType")
     var resp = EpsonEposPrinterResult("onDiscoveryPrinter", false)
 
     try {
-      // Add error callback handling
       Discovery.start(
               context,
               filter,
@@ -232,7 +235,6 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
               }
       )
 
-      // Use Handler to delay the result and ensure discovery completes
       Handler(Looper.getMainLooper())
               .postDelayed(
                       {

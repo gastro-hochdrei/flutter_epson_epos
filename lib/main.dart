@@ -1,6 +1,7 @@
-import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:io';
+
+import 'package:flutter/services.dart';
 
 import 'enums.dart';
 import 'helpers.dart';
@@ -20,19 +21,27 @@ class EpsonEPOS {
     return false;
   }
 
-  static Future<List<EpsonPrinterModel>?> onDiscovery(
-      {EpsonEPOSPortType type = EpsonEPOSPortType.ALL}) async {
+  static Future<List<EpsonPrinterModel>?> onDiscovery({
+    EpsonEPOSPortType type = EpsonEPOSPortType.ALL,
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
     if (!_isPrinterPlatformSupport(throwError: true)) return null;
+
     String printType = _eposHelper.getPortType(type);
     final Map<String, dynamic> params = {"type": printType};
-    String? rep = await _channel.invokeMethod('onDiscovery', params);
-    if (rep != null) {
-      try {
-        final response = EpsonPrinterResponse.fromRawJson(rep);
-        print(rep);
 
-        List<dynamic> prs = response.content;
-        if (prs.length > 0) {
+    try {
+      String? rep = await _channel
+          .invokeMethod('onDiscovery', params)
+          .timeout(timeout, onTimeout: () {
+        throw TimeoutException('Printer discovery timed out');
+      });
+
+      if (rep != null) {
+        final response = EpsonPrinterResponse.fromRawJson(rep);
+        List<dynamic> prs = response.content ?? [];
+
+        if (prs.isNotEmpty) {
           return prs.map((e) {
             final modelName = e['model'];
             final modelSeries = _eposHelper.getSeries(modelName);
@@ -47,11 +56,13 @@ class EpsonEPOS {
             );
           }).toList();
         }
-      } catch (e) {
-        throw e;
       }
+      return [];
+    } catch (e) {
+      throw PlatformException(
+          code: 'DISCOVERY_ERROR',
+          message: 'Error discovering printers: ${e.toString()}');
     }
-    return [];
   }
 
   static Future<dynamic> onPrint(

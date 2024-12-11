@@ -168,15 +168,16 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     }
   }
 
-  /** Discovery printers */
   private fun onDiscovery(@NonNull call: MethodCall, @NonNull result: Result) {
     val printType: String = call.argument<String>("type") as String
-    Log.d(logTag, "onDiscovery type: $printType")
+    var delay: Long = 7000 // Default delay for TCP/BT
+
     when (printType) {
       "TCP" -> {
         onDiscoveryPrinter(call, Discovery.PORTTYPE_TCP, result)
       }
       "USB" -> {
+        delay = 1000 // Shorter delay for USB
         onDiscoveryPrinter(call, Discovery.PORTTYPE_USB, result)
       }
       "BT" -> {
@@ -189,24 +190,21 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     }
   }
 
-  /** Discovery Printers GENERIC */
   private fun onDiscoveryPrinter(
           @NonNull call: MethodCall,
           portType: Int,
           @NonNull result: Result
   ) {
-    var delay: Long = 7000
-    if (portType == Discovery.PORTTYPE_USB) {
-      delay = 1000
-    }
     printers.clear()
-    var filter = FilterOption()
+    val filter = FilterOption()
     filter.portType = portType
-    Log.e("onDiscoveryPrinter", "Filter = $portType")
 
     var resp = EpsonEposPrinterResult("onDiscoveryPrinter", false)
+
     try {
       Discovery.start(context, filter, mDiscoveryListener)
+
+      // Use Handler to delay the result
       Handler(Looper.getMainLooper())
               .postDelayed(
                       {
@@ -219,11 +217,32 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                       delay
               )
     } catch (e: Exception) {
-      Log.e("onDiscoveryPrinter", "Start not working ${call.method}")
       resp.success = false
-      resp.message = "Error while search printer"
-      e.printStackTrace()
+      resp.message = "Error while searching printer: ${e.message}"
       result.success(resp.toJSON())
+      stopDiscovery()
+    }
+  }
+
+  private val mDiscoveryListener = DiscoveryListener { deviceInfo ->
+    if (deviceInfo?.deviceName != null && deviceInfo.deviceName.isNotEmpty()) {
+      val printer =
+              EpsonEposPrinterInfo(
+                      deviceInfo.ipAddress,
+                      deviceInfo.bdAddress,
+                      deviceInfo.macAddress,
+                      deviceInfo.deviceName,
+                      deviceInfo.deviceType.toString(),
+                      deviceInfo.deviceType.toString(),
+                      deviceInfo.target
+              )
+
+      val printerIndex = printers.indexOfFirst { it.ipAddress == deviceInfo.ipAddress }
+      if (printerIndex > -1) {
+        printers[printerIndex] = printer
+      } else {
+        printers.add(printer)
+      }
     }
   }
 

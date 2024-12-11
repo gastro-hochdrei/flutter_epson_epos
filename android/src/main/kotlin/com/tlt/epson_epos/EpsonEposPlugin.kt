@@ -13,6 +13,7 @@ import com.epson.epos2.Epos2Exception
 import com.epson.epos2.Log as PrintLog
 import com.epson.epos2.discovery.Discovery
 import com.epson.epos2.discovery.DiscoveryListener
+import com.epson.epos2.discovery.DeviceInfo
 import com.epson.epos2.discovery.FilterOption
 import com.epson.epos2.printer.Printer
 import com.epson.epos2.printer.PrinterSettingListener
@@ -190,21 +191,50 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     }
   }
 
+  // Remove the duplicate mDiscoveryListener declaration and combine into one
+  private val mDiscoveryListener =
+          object : DiscoveryListener {
+            override fun onDiscovery(deviceInfo: DeviceInfo?) {
+              Log.d(logTag, "Found: ${deviceInfo?.deviceName}")
+              if (deviceInfo?.deviceName != null && deviceInfo.deviceName.isNotEmpty()) {
+                val printer =
+                        EpsonEposPrinterInfo(
+                                deviceInfo.ipAddress,
+                                deviceInfo.bdAddress,
+                                deviceInfo.macAddress,
+                                deviceInfo.deviceName,
+                                deviceInfo.deviceType.toString(),
+                                deviceInfo.deviceType.toString(),
+                                deviceInfo.target
+                        )
+
+                val printerIndex = printers.indexOfFirst { it.ipAddress == deviceInfo.ipAddress }
+                if (printerIndex > -1) {
+                  printers[printerIndex] = printer
+                } else {
+                  printers.add(printer)
+                }
+              }
+            }
+          }
+
   private fun onDiscoveryPrinter(
           @NonNull call: MethodCall,
           portType: Int,
           @NonNull result: Result
   ) {
+    // Declare delay variable at the beginning of the function
+    val delay: Long = if (portType == Discovery.PORTTYPE_USB) 1000 else 7000
+
     printers.clear()
     val filter = FilterOption()
     filter.portType = portType
 
+    Log.e("onDiscoveryPrinter", "Filter = $portType")
     var resp = EpsonEposPrinterResult("onDiscoveryPrinter", false)
 
     try {
       Discovery.start(context, filter, mDiscoveryListener)
-
-      // Use Handler to delay the result
       Handler(Looper.getMainLooper())
               .postDelayed(
                       {
@@ -217,32 +247,11 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                       delay
               )
     } catch (e: Exception) {
+      Log.e("onDiscoveryPrinter", "Start not working ${call.method}")
       resp.success = false
-      resp.message = "Error while searching printer: ${e.message}"
+      resp.message = "Error while search printer"
+      e.printStackTrace()
       result.success(resp.toJSON())
-      stopDiscovery()
-    }
-  }
-
-  private val mDiscoveryListener = DiscoveryListener { deviceInfo ->
-    if (deviceInfo?.deviceName != null && deviceInfo.deviceName.isNotEmpty()) {
-      val printer =
-              EpsonEposPrinterInfo(
-                      deviceInfo.ipAddress,
-                      deviceInfo.bdAddress,
-                      deviceInfo.macAddress,
-                      deviceInfo.deviceName,
-                      deviceInfo.deviceType.toString(),
-                      deviceInfo.deviceType.toString(),
-                      deviceInfo.target
-              )
-
-      val printerIndex = printers.indexOfFirst { it.ipAddress == deviceInfo.ipAddress }
-      if (printerIndex > -1) {
-        printers[printerIndex] = printer
-      } else {
-        printers.add(printer)
-      }
     }
   }
 

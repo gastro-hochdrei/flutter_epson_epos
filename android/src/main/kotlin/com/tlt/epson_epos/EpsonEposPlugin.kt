@@ -11,9 +11,9 @@ import android.util.Log
 import androidx.annotation.NonNull
 import com.epson.epos2.Epos2Exception
 import com.epson.epos2.Log as PrintLog
+import com.epson.epos2.discovery.DeviceInfo
 import com.epson.epos2.discovery.Discovery
 import com.epson.epos2.discovery.DiscoveryListener
-import com.epson.epos2.discovery.DeviceInfo
 import com.epson.epos2.discovery.FilterOption
 import com.epson.epos2.printer.Printer
 import com.epson.epos2.printer.PrinterSettingListener
@@ -191,33 +191,6 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     }
   }
 
-  // Remove the duplicate mDiscoveryListener declaration and combine into one
-  private val mDiscoveryListener =
-          object : DiscoveryListener {
-            override fun onDiscovery(deviceInfo: DeviceInfo?) {
-              Log.d(logTag, "Found: ${deviceInfo?.deviceName}")
-              if (deviceInfo?.deviceName != null && deviceInfo.deviceName.isNotEmpty()) {
-                val printer =
-                        EpsonEposPrinterInfo(
-                                deviceInfo.ipAddress,
-                                deviceInfo.bdAddress,
-                                deviceInfo.macAddress,
-                                deviceInfo.deviceName,
-                                deviceInfo.deviceType.toString(),
-                                deviceInfo.deviceType.toString(),
-                                deviceInfo.target
-                        )
-
-                val printerIndex = printers.indexOfFirst { it.ipAddress == deviceInfo.ipAddress }
-                if (printerIndex > -1) {
-                  printers[printerIndex] = printer
-                } else {
-                  printers.add(printer)
-                }
-              }
-            }
-          }
-
   private fun onDiscoveryPrinter(
           @NonNull call: MethodCall,
           portType: Int,
@@ -391,27 +364,31 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
   /// FUNCTIONS
 
-  private val mDiscoveryListener = DiscoveryListener { deviceInfo ->
-    Log.d(logTag, "Found: ${deviceInfo?.deviceName}")
-    if (deviceInfo?.deviceName != null && deviceInfo?.deviceName != "") {
-      var printer =
-              EpsonEposPrinterInfo(
-                      deviceInfo.ipAddress,
-                      deviceInfo.bdAddress,
-                      deviceInfo.macAddress,
-                      deviceInfo.deviceName,
-                      deviceInfo.deviceType.toString(),
-                      deviceInfo.deviceType.toString(),
-                      deviceInfo.target
-              )
-      var printerIndex = printers.indexOfFirst { e -> e.ipAddress == deviceInfo.ipAddress }
-      if (printerIndex > -1) {
-        printers[printerIndex] = printer
-      } else {
-        printers.add(printer)
-      }
-    }
-  }
+  private val mDiscoveryListener =
+          object : DiscoveryListener {
+            override fun onDiscovery(deviceInfo: DeviceInfo?) {
+              Log.d(logTag, "Found: ${deviceInfo?.deviceName}")
+              if (deviceInfo?.deviceName != null && deviceInfo.deviceName.isNotEmpty()) {
+                val printer =
+                        EpsonEposPrinterInfo(
+                                deviceInfo.ipAddress,
+                                deviceInfo.bdAddress,
+                                deviceInfo.macAddress,
+                                deviceInfo.deviceName,
+                                deviceInfo.deviceType.toString(),
+                                deviceInfo.deviceType.toString(),
+                                deviceInfo.target
+                        )
+
+                val printerIndex = printers.indexOfFirst { it.ipAddress == deviceInfo.ipAddress }
+                if (printerIndex > -1) {
+                  printers[printerIndex] = printer
+                } else {
+                  printers.add(printer)
+                }
+              }
+            }
+          }
 
   private val mPrinterSettingListener =
           object : PrinterSettingListener {

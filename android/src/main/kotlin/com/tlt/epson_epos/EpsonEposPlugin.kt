@@ -191,40 +191,71 @@ class EpsonEposPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     }
   }
 
-  private fun onDiscoveryPrinter(
-          @NonNull call: MethodCall,
-          portType: Int,
-          @NonNull result: Result
-  ) {
-    // Declare delay variable at the beginning of the function
-    val delay: Long = if (portType == Discovery.PORTTYPE_USB) 1000 else 20000
-
+  private fun onDiscoveryPrinter(@NonNull call: MethodCall, @NonNull result: Result) {
+    val delay: Long = if (portType == Discovery.PORTTYPE_USB) 1000 else 7000
     printers.clear()
+
     val filter = FilterOption()
     filter.portType = portType
 
-    Log.e("onDiscoveryPrinter", "Filter = $portType")
     var resp = EpsonEposPrinterResult("onDiscoveryPrinter", false)
 
     try {
-      Discovery.start(context, filter, mDiscoveryListener)
+      // Add error callback handling
+      Discovery.start(
+              context,
+              filter,
+              object : DiscoveryListener {
+                override fun onDiscovery(deviceInfo: DeviceInfo?) {
+                  Log.d(logTag, "Found: ${deviceInfo?.deviceName}")
+                  if (deviceInfo?.deviceName != null && deviceInfo.deviceName.isNotEmpty()) {
+                    val printer =
+                            EpsonEposPrinterInfo(
+                                    deviceInfo.ipAddress,
+                                    deviceInfo.bdAddress,
+                                    deviceInfo.macAddress,
+                                    deviceInfo.deviceName,
+                                    deviceInfo.deviceType.toString(),
+                                    deviceInfo.deviceType.toString(),
+                                    deviceInfo.target
+                            )
+
+                    val printerIndex =
+                            printers.indexOfFirst { it.ipAddress == deviceInfo.ipAddress }
+                    if (printerIndex > -1) {
+                      printers[printerIndex] = printer
+                    } else {
+                      printers.add(printer)
+                    }
+                  }
+                }
+              }
+      )
+
+      // Use Handler to delay the result and ensure discovery completes
       Handler(Looper.getMainLooper())
               .postDelayed(
                       {
-                        resp.success = true
-                        resp.message = "Successfully!"
-                        resp.content = printers
-                        result.success(resp.toJSON())
-                        stopDiscovery()
+                        try {
+                          Discovery.stop()
+                          resp.success = true
+                          resp.message = "Successfully found ${printers.size} printer(s)"
+                          resp.content = printers
+                          result.success(resp.toJSON())
+                        } catch (e: Exception) {
+                          resp.success = false
+                          resp.message = "Error stopping discovery: ${e.message}"
+                          result.success(resp.toJSON())
+                        }
                       },
                       delay
               )
     } catch (e: Exception) {
-      Log.e("onDiscoveryPrinter", "Start not working ${call.method}")
+      Log.e(logTag, "Discovery error: ${e.message}")
       resp.success = false
-      resp.message = "Error while search printer"
-      e.printStackTrace()
+      resp.message = "Error while searching printer: ${e.message}"
       result.success(resp.toJSON())
+      stopDiscovery()
     }
   }
 

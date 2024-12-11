@@ -1,5 +1,7 @@
-import 'enums.dart';
+import 'package:collection/collection.dart';
+
 import 'const.dart';
+import 'enums.dart';
 import 'models.dart';
 
 class EpsonEPOSHelper {
@@ -20,8 +22,8 @@ class EpsonEPOSHelper {
 
   EPSONSeries? getSeries(String modelName) {
     if (modelName.isEmpty) return null;
-    return epsonSeries.firstWhere(
-        (element) => element.models.contains(modelName),
-        orElse: null);
+    return epsonSeries.firstWhereOrNull(
+      (element) => element.models.contains(modelName),
+    );
   }
 }
